@@ -5,6 +5,7 @@
 #include "service_Protocole_SPI.h"
 #include <stdio.h>
 #include "processus_Communication.h"
+#include "pilote_Camera.h"
 
 #include "esp_camera.h"
 #include "img_converters.h"
@@ -17,6 +18,7 @@
 void processus_Communication_Att_Lire();
 void processus_Communication_Lire();
 void processus_Communication_Set_New_Com();
+void processus_Communication_Get_New_Image();
 
 
 PROCESSUS_COMMUNICATION processus_Communication_Struct;
@@ -83,9 +85,33 @@ void processus_Communication_Lire()
  */
 void processus_Communication_Set_New_Com()
 {
-    
+    if(Service_Protocole_SPI_struct.state == STATE_SEND_START_NEW_IMAGE)
+    {
+        service_Protocole_SPI_Pepare_Trame_New_Image(interface_SPI_Struct.spi_slave_tx_buf, &interface_SPI_Struct.spi_message_size);
+        interface_SPI_Struct.trameReady = 1;
+        Service_Protocole_SPI_struct.state == STATE_SEND_IMAGE;
+        serviceBaseDeTemps_execute[PROCESSUSCOMMUNICATION] = processus_Communication_Att_Lire;
+        return;
+    }
+
     service_Protocole_SPI_Pepare_Trame_Image_Chunk(interface_SPI_Struct.spi_slave_tx_buf, &interface_SPI_Struct.spi_message_size);
     interface_SPI_Struct.trameReady = 1;
+
+    if(Service_Protocole_SPI_struct.state == STATE_NEW_IMAGE)
+    {
+        serviceBaseDeTemps_execute[PROCESSUSCOMMUNICATION] = processus_Communication_Get_New_Image;
+        return;
+    }
+
+    serviceBaseDeTemps_execute[PROCESSUSCOMMUNICATION] = processus_Communication_Att_Lire;
+}
+
+
+void processus_Communication_Get_New_Image()
+{
+    pilote_Camera_Take_Photo(Service_Protocole_SPI_struct.New_ImageBuffer, &Service_Protocole_SPI_struct.Grosseur_Image);
+    Service_Protocole_SPI_struct.PositionImage = 0;
+    Service_Protocole_SPI_struct.state = STATE_SEND_START_NEW_IMAGE;
     serviceBaseDeTemps_execute[PROCESSUSCOMMUNICATION] = processus_Communication_Att_Lire;
 }
 

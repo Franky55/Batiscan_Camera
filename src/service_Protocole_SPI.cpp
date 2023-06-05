@@ -102,6 +102,7 @@ int service_Protocole_SPI_Read_Data(unsigned char* plane, unsigned char* size)
  */
 int service_Protocole_SPI_Pepare_Trame_Image_Chunk(unsigned char* plane, unsigned char* size)
 {
+    
     *size = TRAME_SIZE;
     
 
@@ -111,7 +112,18 @@ int service_Protocole_SPI_Pepare_Trame_Image_Chunk(unsigned char* plane, unsigne
     
     for(int i = POSITION_DATA; i < POSITION_CHECKSUM; i++)
     {
-        plane[i] = Service_Protocole_SPI_struct.New_ImageBuffer[i + Service_Protocole_SPI_struct.PositionImage];
+        if(i + Service_Protocole_SPI_struct.PositionImage - POSITION_DATA >= Service_Protocole_SPI_struct.Grosseur_Image)
+        {
+            plane[i] = 0;
+            Service_Protocole_SPI_struct.state = STATE_NEW_IMAGE;
+        }
+        else
+        {
+            plane[i] = Service_Protocole_SPI_struct.New_ImageBuffer[i + Service_Protocole_SPI_struct.PositionImage - POSITION_DATA];
+        }
+        
+
+        
     }
 
     unsigned char checkSum = 0;
@@ -127,3 +139,30 @@ int service_Protocole_SPI_Pepare_Trame_Image_Chunk(unsigned char* plane, unsigne
 }
 
 
+
+int service_Protocole_SPI_Pepare_Trame_New_Image(unsigned char* plane, unsigned char* size)
+{
+    *size = TRAME_SIZE;
+    
+
+    plane[POSITION_START_BYTE] = START_BYTE_NEW_IMAGE;
+    plane[1] = START_BYTE;
+    plane[2] = (Service_Protocole_SPI_struct.Grosseur_Image >> 8) & 0x00FF;
+    plane[3] = (Service_Protocole_SPI_struct.Grosseur_Image) & 0x00FF;
+    
+    for(int i = 4; i < POSITION_CHECKSUM; i++)
+    {
+        plane[i] = 0;
+    }
+
+    unsigned char checkSum = 0;
+    for (int i = 0; i < POSITION_CHECKSUM; i++)
+    {
+        checkSum += plane[i];
+    }
+
+    plane[POSITION_CHECKSUM] = checkSum;
+    
+    
+    return 0;
+}
